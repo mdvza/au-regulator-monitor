@@ -1,0 +1,36 @@
+name: AU Regulator Monitor
+
+on:
+  # Esecuzione automatica ogni lunedì alle 7:00 ora di Sydney (UTC+11 in estate, UTC+10 in inverno)
+  # Questo cron gira alle 20:00 UTC domenica = 07:00 AEDT lunedì
+  schedule:
+    - cron: "0 20 * * 0"
+
+  # Permette di avviare il workflow manualmente dalla UI di GitHub
+  workflow_dispatch:
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install anthropic
+
+      - name: Run regulator monitor
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
+          EMAIL_RECIPIENT: ${{ secrets.EMAIL_RECIPIENT }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          SMTP_HOST: smtp.gmail.com
+          SMTP_PORT: "587"
+        run: python monitor.py
