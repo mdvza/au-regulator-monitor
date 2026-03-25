@@ -82,8 +82,10 @@ IMPORTANT INSTRUCTIONS:
 - Write entirely in clear, plain English. No Italian. No other languages.
 - Be concise and professional. Each update should be 2-4 sentences maximum.
 - Use the exact structure below. Do not deviate from it.
-- Do not include any preamble, meta-commentary, or explanation of what you are doing.
-- Start directly with the Executive Summary.
+- Do not include ANY preamble, meta-commentary, or explanation of what you are doing.
+- Your response MUST start with the exact text: EXECUTIVE SUMMARY (on its own line).
+- Never write introductory sentences before EXECUTIVE SUMMARY.
+- Never combine section headers with other text on the same line.
 - For each update, you MUST include the exact URL of the specific page, press release, or document you found during web search. Format: [Read more](https://exact-url.com)
 - The URL must point to the specific article, press release, media release, consultation paper, or enforcement notice — NOT to a homepage or section index.
 - Good example: https://www.accc.gov.au/media-release/accc-takes-action-against-xyz (specific press release)
@@ -276,8 +278,24 @@ def render_html(report_text, today):
                 result += part
         return result
 
-    # Identify section headers (lines like "1. ACCC ..." or "EXECUTIVE SUMMARY" or "ACTION ITEMS")
+    # Identify section headers - also handle cases where header appears mid-line
     import re
+    # Pre-process: split lines on known section headers that appear mid-line
+    processed_lines = []
+    header_split = re.compile(
+        r'(EXECUTIVE SUMMARY|ACTION ITEMS|\d+\.\s+(?:ACCC|OAIC|TREASURY|ACMA|LAW FIRM)[^\n]*)',
+        re.IGNORECASE
+    )
+    for line in lines:
+        parts = header_split.split(line)
+        if len(parts) > 1:
+            for part in parts:
+                if part.strip():
+                    processed_lines.append(part.strip())
+        else:
+            processed_lines.append(line)
+    lines = processed_lines
+
     section_pattern = re.compile(
         r'^(EXECUTIVE SUMMARY|ACTION ITEMS|\d+\.\s+(ACCC|OAIC|TREASURY|ACMA|LAW FIRM))',
         re.IGNORECASE
