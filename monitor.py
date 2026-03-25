@@ -84,6 +84,8 @@ IMPORTANT INSTRUCTIONS:
 - Use the exact structure below. Do not deviate from it.
 - Do not include any preamble, meta-commentary, or explanation of what you are doing.
 - Start directly with the Executive Summary.
+- For each update, include a clickable source link in markdown format at the end of the summary: [Read more](https://url.com)
+- Only link to official sources: regulator websites (accc.gov.au, oaic.gov.au, treasury.gov.au, acma.gov.au) or law firm insight pages. Do not link to news aggregators or paywalled articles.
 
 ---
 
@@ -253,8 +255,16 @@ def render_html(report_text, today):
         return f'<p style="margin:5px 0; color:#444; font-size:14px; line-height:1.7;">{apply_bold(stripped)}</p>'
 
     def apply_bold(text):
-        result = ""
+        import re
+        # Convert markdown links [text](url) to HTML anchors
+        text = re.sub(
+            r'\[([^\]]+)\]\((https?://[^\)]+)\)',
+            r'<a href="\2" style="color:#2B7FD4;text-decoration:none;font-weight:600;">\1 ↗</a>',
+            text
+        )
+        # Convert **bold**
         parts = text.split("**")
+        result = ""
         for i, part in enumerate(parts):
             if i % 2 == 1:
                 result += f"<strong>{part}</strong>"
