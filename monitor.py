@@ -194,6 +194,155 @@ def run_monitor():
     return report_text
 
 
+# ── Section colour map ───────────────────────────────────────────
+SECTION_COLORS = {
+    "accc":            {"bg": "#EBF4FF", "border": "#2B7FD4", "label": "#1A5FA8"},
+    "oaic":            {"bg": "#EDF7F2", "border": "#2BA876", "label": "#1A7A52"},
+    "treasury":        {"bg": "#FFF8EB", "border": "#D4902B", "label": "#A86A1A"},
+    "acma":            {"bg": "#F3EEFF", "border": "#7B5EA7", "label": "#5A3D8A"},
+    "law firm":        {"bg": "#FFF0F0", "border": "#D45A5A", "label": "#A83030"},
+    "action items":    {"bg": "#F0F9FF", "border": "#2BB5D4", "label": "#1A8AA8"},
+    "executive":       {"bg": "#F8F8F8", "border": "#AAAAAA", "label": "#444444"},
+}
+
+def get_section_color(title):
+    t = title.lower()
+    for key, val in SECTION_COLORS.items():
+        if key in t:
+            return val
+    return {"bg": "#F4F6F8", "border": "#AAAAAA", "label": "#333333"}
+
+def render_html(report_text, today):
+    lines = report_text.split("\n")
+    blocks = []
+    current_section_color = None
+    current_section_lines = []
+    current_section_title = None
+
+    def flush_section():
+        if current_section_title is None:
+            return ""
+        c = current_section_color
+        inner = "".join(current_section_lines)
+        return f"""
+        <div style="margin-bottom:24px; border-radius:8px; overflow:hidden; border:1px solid {c['border']};">
+          <div style="background:{c['border']}; padding:10px 18px;">
+            <span style="color:#ffffff; font-size:13px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;">{current_section_title}</span>
+          </div>
+          <div style="background:{c['bg']}; padding:16px 18px;">
+            {inner}
+          </div>
+        </div>"""
+
+    def render_line(stripped):
+        if not stripped or stripped == "---":
+            return ""
+        # Bullet points
+        if stripped.startswith("• ") or stripped.startswith("- "):
+            content = stripped[2:]
+            content = apply_bold(content)
+            return f'<p style="margin:5px 0 5px 12px; color:#333; font-size:14px; line-height:1.65;">&#8226;&nbsp;{content}</p>'
+        # Update titles (bold standalone lines like **Title** — date)
+        if stripped.startswith("**") and "**" in stripped[2:]:
+            end = stripped.index("**", 2)
+            title_text = stripped[2:end]
+            rest = stripped[end+2:].strip(" —-")
+            date_html = f'<span style="color:#888; font-size:12px; margin-left:8px;">{rest}</span>' if rest else ""
+            return f'<p style="margin:14px 0 4px; font-size:14px; font-weight:700; color:#1a1a2e;">{title_text}{date_html}</p>'
+        # Regular paragraph
+        return f'<p style="margin:5px 0; color:#444; font-size:14px; line-height:1.7;">{apply_bold(stripped)}</p>'
+
+    def apply_bold(text):
+        result = ""
+        parts = text.split("**")
+        for i, part in enumerate(parts):
+            if i % 2 == 1:
+                result += f"<strong>{part}</strong>"
+            else:
+                result += part
+        return result
+
+    # Identify section headers (lines like "1. ACCC ..." or "EXECUTIVE SUMMARY" or "ACTION ITEMS")
+    import re
+    section_pattern = re.compile(
+        r'^(EXECUTIVE SUMMARY|ACTION ITEMS|\d+\.\s+(ACCC|OAIC|TREASURY|ACMA|LAW FIRM))',
+        re.IGNORECASE
+    )
+
+    html_sections = []
+    cur_title = None
+    cur_color = None
+    cur_lines_html = []
+
+    for line in lines:
+        stripped = line.strip()
+        if not stripped or stripped == "---":
+            continue
+        m = section_pattern.match(stripped)
+        if m:
+            # Flush previous section
+            if cur_title:
+                inner = "".join(cur_lines_html)
+                c = cur_color
+                html_sections.append(f"""
+                <div style="margin-bottom:20px;border-radius:8px;overflow:hidden;border:1.5px solid {c['border']};">
+                  <div style="background:{c['border']};padding:9px 18px;">
+                    <span style="color:#fff;font-size:12px;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;">{cur_title}</span>
+                  </div>
+                  <div style="background:{c['bg']};padding:16px 18px 12px;">{inner}</div>
+                </div>""")
+            cur_title = stripped
+            cur_color = get_section_color(stripped)
+            cur_lines_html = []
+        else:
+            cur_lines_html.append(render_line(stripped))
+
+    # Flush last section
+    if cur_title:
+        inner = "".join(cur_lines_html)
+        c = cur_color
+        html_sections.append(f"""
+        <div style="margin-bottom:20px;border-radius:8px;overflow:hidden;border:1.5px solid {c['border']};">
+          <div style="background:{c['border']};padding:9px 18px;">
+            <span style="color:#fff;font-size:12px;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;">{cur_title}</span>
+          </div>
+          <div style="background:{c['bg']};padding:16px 18px 12px;">{inner}</div>
+        </div>""")
+
+    body = "\n".join(html_sections)
+
+    return f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f0f2f5;font-family:-apple-system,Helvetica Neue,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f2f5;padding:32px 0;">
+<tr><td align="center">
+<table width="620" cellpadding="0" cellspacing="0" style="max-width:620px;width:100%;">
+
+  <!-- Header -->
+  <tr><td>
+  <div style="background:#0D1B2A;border-radius:10px 10px 0 0;padding:24px 28px 20px;">
+    <div style="font-size:11px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:#5B9BD5;margin-bottom:6px;">Weekly Intelligence Briefing</div>
+    <div style="font-size:22px;font-weight:700;color:#ffffff;margin-bottom:4px;">AU Regulator Monitor</div>
+    <div style="font-size:13px;color:#8BA7C0;">{today}</div>
+    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+      {"".join([f'<span style="display:inline-block;background:rgba(255,255,255,0.1);color:#CBD8E4;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;margin-right:4px;">{tag}</span>' for tag in ["ACCC","OAIC","Treasury AU","ACMA","Law Firms"]])}
+    </div>
+  </div>
+  </td></tr>
+
+  <!-- Content -->
+  <tr><td style="background:#ffffff;padding:24px 28px;border-radius:0 0 10px 10px;">
+    {body}
+    <div style="margin-top:28px;padding-top:16px;border-top:1px solid #e8e8e8;text-align:center;">
+      <p style="font-size:11px;color:#aaa;margin:0;">Generated automatically · Claude API + web search + law firm scraping · Every Monday 7:00 AM AEDT</p>
+    </div>
+  </td></tr>
+
+</table>
+</td></tr></table>
+</body></html>"""
+
+
 # ── Email sender ─────────────────────────────────────────────────
 def send_email(report_text):
     sender = os.environ["EMAIL_SENDER"]
@@ -204,52 +353,7 @@ def send_email(report_text):
 
     today = datetime.now().strftime("%d %B %Y")
     subject = f"AU Regulator Monitor — Weekly Briefing {today}"
-
-    # Convert plain text to clean HTML
-    html_lines = []
-    for line in report_text.split("\n"):
-        stripped = line.strip()
-        if not stripped:
-            html_lines.append("<br>")
-        elif stripped.startswith("# "):
-            html_lines.append(f'<h1 style="font-size:20px;color:#1a1a2e;margin:24px 0 8px;">{stripped[2:]}</h1>')
-        elif stripped.startswith("## "):
-            html_lines.append(f'<h2 style="font-size:17px;color:#1a1a2e;margin:20px 0 6px;border-bottom:1px solid #e0e0e0;padding-bottom:4px;">{stripped[3:]}</h2>')
-        elif stripped.startswith("### "):
-            html_lines.append(f'<h3 style="font-size:15px;color:#333;margin:16px 0 4px;">{stripped[4:]}</h3>')
-        elif stripped.startswith("---"):
-            html_lines.append('<hr style="border:none;border-top:1px solid #e0e0e0;margin:16px 0;">')
-        elif stripped.startswith("• ") or stripped.startswith("- "):
-            html_lines.append(f'<p style="margin:6px 0 6px 16px;color:#333;">&#8226; {stripped[2:]}</p>')
-        elif stripped.startswith("**") and stripped.endswith("**"):
-            html_lines.append(f'<p style="font-weight:600;color:#1a1a2e;margin:12px 0 4px;">{stripped[2:-2]}</p>')
-        else:
-            # Handle inline bold (**text**)
-            formatted = stripped
-            while "**" in formatted:
-                formatted = formatted.replace("**", "<strong>", 1).replace("**", "</strong>", 1)
-            html_lines.append(f'<p style="margin:4px 0;color:#333;line-height:1.6;">{formatted}</p>')
-
-    html_body = f"""
-    <html><body style="font-family: -apple-system, Arial, sans-serif; max-width: 680px; margin: auto; padding: 24px; color: #222;">
-
-    <div style="background: #1a1a2e; padding: 20px 24px; border-radius: 8px; margin-bottom: 28px;">
-        <h1 style="margin:0; color: #ffffff; font-size: 20px; font-weight: 600;">AU Regulator Monitor</h1>
-        <p style="margin: 6px 0 0; color: #aab; font-size: 13px;">Weekly Briefing — {today}</p>
-        <p style="margin: 4px 0 0; color: #aab; font-size: 12px;">
-            ACCC &nbsp;·&nbsp; OAIC &nbsp;·&nbsp; Treasury AU &nbsp;·&nbsp; ACMA &nbsp;·&nbsp; Law Firm Insights
-        </p>
-    </div>
-
-    {"".join(html_lines)}
-
-    <hr style="margin-top: 36px; border: none; border-top: 1px solid #e0e0e0;">
-    <p style="font-size: 11px; color: #999; margin-top: 12px;">
-        Generated automatically by AU Regulator Monitor · Claude API + web search + law firm scraping<br>
-        Runs every Monday at 7:00 AM AEDT
-    </p>
-    </body></html>
-    """
+    html_body = render_html(report_text, today)
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
