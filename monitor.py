@@ -360,10 +360,14 @@ def render_html(report_text, today):
 # ── Email sender ─────────────────────────────────────────────────
 def send_email(report_text):
     sender = os.environ["EMAIL_SENDER"]
-    recipient = os.environ["EMAIL_RECIPIENT"]
     password = os.environ["EMAIL_PASSWORD"]
     smtp_host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
     smtp_port = int(os.environ.get("SMTP_PORT", "587"))
+
+    # Support multiple recipients separated by commas
+    # e.g. EMAIL_RECIPIENT = "matteo@ebay.com, colleague1@ebay.com, colleague2@ebay.com"
+    recipients_raw = os.environ["EMAIL_RECIPIENT"]
+    recipients = [r.strip() for r in recipients_raw.split(",") if r.strip()]
 
     today = datetime.now().strftime("%d %B %Y")
     subject = f"AU Regulator Monitor — Weekly Briefing {today}"
@@ -372,16 +376,16 @@ def send_email(report_text):
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
     msg["From"] = sender
-    msg["To"] = recipient
+    msg["To"] = ", ".join(recipients)
     msg.attach(MIMEText(report_text, "plain"))
     msg.attach(MIMEText(html_body, "html"))
 
     with smtplib.SMTP(smtp_host, smtp_port) as server:
         server.starttls()
         server.login(sender, password)
-        server.sendmail(sender, recipient, msg.as_string())
+        server.sendmail(sender, recipients, msg.as_string())
 
-    print(f"Email sent to {recipient}")
+    print(f"Email sent to: {', '.join(recipients)}")
 
 
 if __name__ == "__main__":
