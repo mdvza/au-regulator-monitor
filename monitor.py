@@ -84,8 +84,12 @@ IMPORTANT INSTRUCTIONS:
 - Use the exact structure below. Do not deviate from it.
 - Do not include any preamble, meta-commentary, or explanation of what you are doing.
 - Start directly with the Executive Summary.
-- For each update, include a clickable source link in markdown format at the end of the summary: [Read more](https://url.com)
-- Only link to official sources: regulator websites (accc.gov.au, oaic.gov.au, treasury.gov.au, acma.gov.au) or law firm insight pages. Do not link to news aggregators or paywalled articles.
+- For each update, you MUST include the exact URL of the specific page, press release, or document you found during web search. Format: [Read more](https://exact-url.com)
+- The URL must point to the specific article, press release, media release, consultation paper, or enforcement notice — NOT to a homepage or section index.
+- Good example: https://www.accc.gov.au/media-release/accc-takes-action-against-xyz (specific press release)
+- Bad example: https://www.accc.gov.au (homepage) or https://www.accc.gov.au/media-release (index page)
+- If you found the information via web search, use the exact URL from the search result.
+- Prefer official sources in this order: (1) regulator's own website, (2) government legislation or consultation page, (3) law firm insight page. Never link to paywalled content or news aggregators.
 
 ---
 
@@ -99,8 +103,8 @@ EXECUTIVE SUMMARY
 1. ACCC (Australian Competition and Consumer Commission)
 
 For each update, use this format:
-• [Title] — [Date if known]
-[2-3 sentence summary of what happened and why it matters for e-commerce platforms.]
+• **[Title]** — [Date if known]
+[2-3 sentence summary of what happened and why it matters for e-commerce platforms.] [Read more](https://exact-url-to-specific-page.com)
 
 Search for and include:
 - Enforcement actions and investigations
