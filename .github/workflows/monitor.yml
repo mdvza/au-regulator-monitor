@@ -1,12 +1,8 @@
 name: AU Regulator Monitor
 
 on:
-  # Esecuzione automatica ogni lunedì alle 7:00 ora di Sydney (UTC+11 in estate, UTC+10 in inverno)
-  # Questo cron gira alle 20:00 UTC domenica = 07:00 AEDT lunedì
   schedule:
     - cron: "0 20 * * 0"
-
-  # Permette di avviare il workflow manualmente dalla UI di GitHub
   workflow_dispatch:
 
 jobs:
@@ -23,7 +19,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: pip install anthropic
+        run: pip install -r requirements.txt
 
       - name: Run regulator monitor
         env:
