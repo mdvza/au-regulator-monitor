@@ -211,7 +211,7 @@ def render_html(report_text, today):
     def apply_inline(text):
         text = re.sub(
             r'\[([^\]]+)\]\((https?://[^\)]+)\)',
-            r'<a href="\2" style="color:#2B7FD4;text-decoration:none;font-weight:600;">\1 \u2197</a>',
+            lambda m: '<a href="' + m.group(2) + '" style="color:#2B7FD4;text-decoration:none;font-weight:600;">' + m.group(1) + ' &#8599;</a>',
             text
         )
         parts = text.split("**")
