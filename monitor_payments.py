@@ -204,35 +204,51 @@ def get_section_color(title):
             return val
     return {"bg": "#F4F6F8", "border": "#AAAAAA"}
 
+
+def apply_inline(text):
+    import re
+    text = re.sub(
+        r'\[([^\]]+)\]\((https?://[^\)]+)\)',
+        lambda m: '<a href="' + m.group(2) + '" style="color:#1a6eb5;text-decoration:underline;font-weight:bold;">' + m.group(1) + ' &#8599;</a>',
+        text
+    )
+    parts = text.split("**")
+    result = ""
+    for i, part in enumerate(parts):
+        result += "<strong>" + part + "</strong>" if i % 2 == 1 else part
+    return result
+
+def render_line_item(stripped):
+    if not stripped or stripped == "---":
+        return ""
+    if stripped.startswith("\u2022 ") or stripped.startswith("- "):
+        return (
+            '<table width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0;">' +
+            '<tr><td width="14" valign="top" style="color:#555;font-size:14px;padding-top:1px;font-family:Arial,sans-serif;">&#8226;</td>' +
+            '<td style="font-size:14px;color:#333;line-height:1.6;font-family:Arial,sans-serif;">' + apply_inline(stripped[2:]) + '</td></tr></table>'
+        )
+    if stripped.startswith("**") and "**" in stripped[2:]:
+        end = stripped.index("**", 2)
+        title_text = stripped[2:end]
+        rest = stripped[end+2:].strip(" -")
+        date_part = '&nbsp;<span style="color:#888;font-size:12px;font-weight:normal;">' + rest + '</span>' if rest else ""
+        return '<p style="margin:12px 0 3px;font-size:14px;font-weight:bold;color:#111;font-family:Arial,sans-serif;">' + title_text + date_part + '</p>'
+    return '<p style="margin:4px 0 6px;font-size:14px;color:#444;line-height:1.65;font-family:Arial,sans-serif;">' + apply_inline(stripped) + '</p>'
+
+def build_section_table(title, color, lines_html):
+    inner = "".join(lines_html)
+    return (
+        '<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;border-collapse:collapse;">' +
+        '<tr><td style="background:' + color["border"] + ';padding:8px 16px;">' +
+        '<span style="color:#ffffff;font-size:11px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;font-family:Arial,sans-serif;">' + title + '</span>' +
+        '</td></tr>' +
+        '<tr><td style="padding:14px 16px 10px;background:' + color["bg"] + ';border-left:3px solid ' + color["border"] + ';border-right:1px solid #e0e0e0;border-bottom:1px solid #e0e0e0;">' + inner + '</td></tr>' +
+        '</table>'
+    )
+
 def render_html(report_text, today):
     import re
     lines = report_text.split("\n")
-
-    def apply_inline(text):
-        text = re.sub(
-            r'\[([^\]]+)\]\((https?://[^\)]+)\)',
-            lambda m: '<a href="' + m.group(2) + '" style="color:#2B7FD4;text-decoration:none;font-weight:600;">' + m.group(1) + ' &#8599;</a>',
-            text
-        )
-        parts = text.split("**")
-        result = ""
-        for i, part in enumerate(parts):
-            result += "<strong>" + part + "</strong>" if i % 2 == 1 else part
-        return result
-
-    def render_line(stripped):
-        if not stripped or stripped == "---":
-            return ""
-        if stripped.startswith("\u2022 ") or stripped.startswith("- "):
-            return '<p style="margin:5px 0 5px 12px;color:#333;font-size:14px;line-height:1.65;">&#8226;&nbsp;' + apply_inline(stripped[2:]) + "</p>"
-        if stripped.startswith("**") and "**" in stripped[2:]:
-            end = stripped.index("**", 2)
-            title_text = stripped[2:end]
-            rest = stripped[end+2:].strip(" \u2014-")
-            date_html = '<span style="color:#888;font-size:12px;margin-left:8px;">' + rest + "</span>" if rest else ""
-            return '<p style="margin:14px 0 4px;font-size:14px;font-weight:700;color:#1a1a2e;">' + title_text + date_html + "</p>"
-        return '<p style="margin:5px 0;color:#444;font-size:14px;line-height:1.7;">' + apply_inline(stripped) + "</p>"
-
     header_split = re.compile(
         r'(EXECUTIVE SUMMARY|ACTION ITEMS|\d+\.\s+(?:RBA|ASIC|AUSTRAC|APRA|FATF|AFCA|OAIC|TREASURY|ACMA|LAW FIRM)[^\n]*)',
         re.IGNORECASE
@@ -251,7 +267,6 @@ def render_html(report_text, today):
         r'^(EXECUTIVE SUMMARY|ACTION ITEMS|\d+\.\s+(RBA|ASIC|AUSTRAC|APRA|FATF|AFCA|OAIC|TREASURY|ACMA|LAW FIRM))',
         re.IGNORECASE
     )
-
     html_sections = []
     cur_title = None
     cur_color = None
@@ -264,52 +279,46 @@ def render_html(report_text, today):
         m = section_pattern.match(stripped)
         if m:
             if cur_title:
-                inner = "".join(cur_lines_html)
-                c = cur_color
-                html_sections.append(
-                    '<div style="margin-bottom:20px;border-radius:8px;overflow:hidden;border:1.5px solid ' + c["border"] + ';"><div style="background:' + c["border"] + ';padding:9px 18px;"><span style="color:#fff;font-size:12px;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;">' + cur_title + '</span></div><div style="background:' + c["bg"] + ';padding:16px 18px 12px;">' + inner + '</div></div>'
-                )
+                html_sections.append(build_section_table(cur_title, cur_color, cur_lines_html))
             cur_title = stripped
             cur_color = get_section_color(stripped)
             cur_lines_html = []
         else:
-            cur_lines_html.append(render_line(stripped))
+            cur_lines_html.append(render_line_item(stripped))
 
     if cur_title:
-        inner = "".join(cur_lines_html)
-        c = cur_color
-        html_sections.append(
-            '<div style="margin-bottom:20px;border-radius:8px;overflow:hidden;border:1.5px solid ' + c["border"] + ';"><div style="background:' + c["border"] + ';padding:9px 18px;"><span style="color:#fff;font-size:12px;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;">' + cur_title + '</span></div><div style="background:' + c["bg"] + ';padding:16px 18px 12px;">' + inner + '</div></div>'
-        )
+        html_sections.append(build_section_table(cur_title, cur_color, cur_lines_html))
 
     body = "\n".join(html_sections)
     tags = ["RBA", "ASIC", "AUSTRAC", "APRA", "FATF", "AFCA", "OAIC", "Treasury AU", "ACMA"]
-    tag_html = "".join('<span style="display:inline-block;background:rgba(255,255,255,0.1);color:#CBD8E4;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;margin-right:4px;">' + tag + '</span>' for tag in tags)
+    tag_cells = "".join(
+        '<td style="padding:0 4px 0 0;">' +
+        '<span style="display:inline-block;background:#1e3a5f;color:#CBD8E4;font-size:11px;font-weight:bold;padding:3px 10px;font-family:Arial,sans-serif;">' + t + '</span></td>'
+        for t in tags
+    )
 
     return """<!DOCTYPE html>
-<html><head><meta charset="utf-8"></head>
-<body style="margin:0;padding:0;background:#f0f2f5;font-family:-apple-system,Helvetica Neue,Arial,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f2f5;padding:32px 0;">
-<tr><td align="center">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f0f2f5;">
+<!--[if mso]><table width="100%"><tr><td><![endif]-->
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f2f5;">
+<tr><td align="center" style="padding:24px 0;">
 <table width="620" cellpadding="0" cellspacing="0" style="max-width:620px;width:100%;">
-  <tr><td>
-  <div style="background:#0D1B2A;border-radius:10px 10px 0 0;padding:24px 28px 20px;">
-    <div style="font-size:11px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:#5B9BD5;margin-bottom:6px;">Weekly Intelligence Briefing</div>
-    <div style="font-size:22px;font-weight:700;color:#ffffff;margin-bottom:4px;">AU Payments &amp; Financial Services Monitor</div>
-    <div style="font-size:13px;color:#8BA7C0;">""" + today + """</div>
-    <div style="margin-top:12px;">""" + tag_html + """</div>
-  </div>
+  <tr><td style="background:#0D1B2A;padding:24px 24px 16px;">
+    <p style="margin:0 0 4px;font-size:11px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;color:#5B9BD5;font-family:Arial,sans-serif;">Weekly Intelligence Briefing</p>
+    <p style="margin:0 0 4px;font-size:22px;font-weight:bold;color:#ffffff;font-family:Arial,sans-serif;">AU Payments &amp; Financial Services Monitor</p>
+    <p style="margin:0 0 12px;font-size:13px;color:#8BA7C0;font-family:Arial,sans-serif;">""" + today + """</p>
+    <table cellpadding="0" cellspacing="0"><tr>""" + tag_cells + """</tr></table>
   </td></tr>
-  <tr><td style="background:#ffffff;padding:24px 28px;border-radius:0 0 10px 10px;">
+  <tr><td style="background:#ffffff;padding:20px 24px;">
     """ + body + """
-    <div style="margin-top:28px;padding-top:16px;border-top:1px solid #e8e8e8;text-align:center;">
-      <p style="font-size:11px;color:#aaa;margin:0;">Generated automatically · Claude API + web search · Every Monday 7:30 AM AEDT</p>
-    </div>
+    <p style="font-size:11px;color:#aaa;text-align:center;margin-top:20px;border-top:1px solid #eee;padding-top:12px;font-family:Arial,sans-serif;">Generated automatically &middot; Claude API + web search &middot; Every Monday 7:30 AM AEDT</p>
   </td></tr>
 </table>
 </td></tr></table>
+<!--[if mso]></td></tr></table><![endif]-->
 </body></html>"""
-
 
 # ── Email sender ─────────────────────────────────────────────────
 def send_email(report_text):
