@@ -1,0 +1,34 @@
+name: AU Payments & Financial Services Monitor
+
+on:
+  schedule:
+    # Every Monday at 7:30 AM AEDT (20:30 UTC Sunday)
+    # Runs 30 minutes after the main regulator monitor
+    - cron: "30 20 * * 0"
+  workflow_dispatch:
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run payments monitor
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
+          EMAIL_RECIPIENT_PAYMENTS: ${{ secrets.EMAIL_RECIPIENT_PAYMENTS }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          SMTP_HOST: smtp.gmail.com
+          SMTP_PORT: "587"
+        run: python monitor_payments.py
