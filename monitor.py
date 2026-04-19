@@ -8,6 +8,7 @@ Sends a weekly briefing email.
 import anthropic
 import smtplib
 import os
+import time
 import requests
 from bs4 import BeautifulSoup
 from email.mime.text import MIMEText
@@ -173,16 +174,36 @@ def run_monitor():
     law_firm_content = scrape_law_firms()
     print("Law firm scraping complete.")
 
-    # Step 2: Call Claude with web search
+    # Step 2: Call Claude with web search (with retry logic)
     print("Calling Claude API with web search...")
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
-    response = client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=4000,
-        tools=[{"type": "web_search_20250305", "name": "web_search"}],
-        messages=[{"role": "user", "content": build_query(law_firm_content)}]
-    )
+    max_attempts = 3
+    response = None
+    for attempt in range(max_attempts):
+        try:
+            response = client.messages.create(
+                model="claude-sonnet-4-6",
+                max_tokens=4000,
+                tools=[{"type": "web_search_20250305", "name": "web_search"}],
+                messages=[{"role": "user", "content": build_query(law_firm_content)}]
+            )
+            break  # success — exit retry loop
+        except anthropic.InternalServerError as e:
+            if attempt < max_attempts - 1:
+                wait = 60 * (attempt + 1)  # 60s first retry, 120s second
+                print(f"API InternalServerError (attempt {attempt+1}/{max_attempts}), retrying in {wait}s...")
+                time.sleep(wait)
+            else:
+                print(f"API InternalServerError after {max_attempts} attempts. Giving up.")
+                raise
+        except anthropic.RateLimitError as e:
+            if attempt < max_attempts - 1:
+                print(f"Rate limit hit (attempt {attempt+1}/{max_attempts}), retrying in 60s...")
+                time.sleep(60)
+            else:
+                print(f"Rate limit error after {max_attempts} attempts. Giving up.")
+                raise
 
     report_text = ""
     for block in response.content:
