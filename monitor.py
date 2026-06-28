@@ -15,6 +15,11 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 
+# ── Model configuration ──────────────────────────────────────────
+# Change the model in ONE place. Override via the CLAUDE_MODEL env
+# variable / GitHub Actions secret without editing the code.
+MODEL = os.environ.get("CLAUDE_MODEL", "claude-sonnet-4-6")
+
 # ── Law firm sources ─────────────────────────────────────────────
 LAW_FIRM_SOURCES = [
     {
@@ -175,7 +180,7 @@ def run_monitor():
     print("Law firm scraping complete.")
 
     # Step 2: Call Claude with web search (with retry logic)
-    print("Calling Claude API with web search...")
+    print(f"Calling Claude API with web search (model: {MODEL})...")
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
     max_attempts = 3
@@ -183,7 +188,7 @@ def run_monitor():
     for attempt in range(max_attempts):
         try:
             response = client.messages.create(
-                model="claude-sonnet-4-6",
+                model=MODEL,
                 max_tokens=4000,
                 tools=[{"type": "web_search_20250305", "name": "web_search"}],
                 messages=[{"role": "user", "content": build_query(law_firm_content)}]
