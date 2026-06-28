@@ -14,6 +14,11 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 
+# ── Model configuration ──────────────────────────────────────────
+# Change the model in ONE place. Override via the CLAUDE_MODEL env
+# variable / GitHub Actions secret without editing the code.
+MODEL = os.environ.get("CLAUDE_MODEL", "claude-sonnet-4-6")
+
 # ── Regulator sources to scrape ──────────────────────────────────
 REGULATOR_SOURCES = [
     {"name": "RBA", "url": "https://www.rba.gov.au/media-releases/", "selector": "h3, h2, a"},
@@ -159,10 +164,10 @@ def run_monitor():
     print("Scraping regulator websites...")
     scraped_content = scrape_sources()
     print("Scraping complete.")
-    print("Calling Claude API with web search...")
+    print("Calling Claude API with web search (model: " + MODEL + ")...")
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
     response = client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model=MODEL,
         max_tokens=4000,
         tools=[{"type": "web_search_20250305", "name": "web_search"}],
         messages=[{"role": "user", "content": build_query(scraped_content)}]
